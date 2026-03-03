@@ -2,10 +2,9 @@
 
 > **Stop pirate stations.** Let every calling station independently verify they are working the real DXpedition — not an imitator.
 
-[![Python 3.7+](https://img.shields.io/badge/python-3.7%2B-blue?logo=python&logoColor=white)](https://www.python.org/)
 [![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](generate_tools.py)
 [![Works offline](https://img.shields.io/badge/offline-yes-success)](README.md)
+[![No dependencies](https://img.shields.io/badge/dependencies-none-brightgreen)](generate_tools.py)
 
 ---
 
@@ -15,20 +14,10 @@ During high-profile DXpeditions, pirate stations transmit on the same frequency
 pretending to be the real expedition. Stations worldwide log contacts that never
 happened. This is the problem this tool solves.
 
-## Design Principle
-
-**Primary:** The DXpedition authenticates itself to calling stations.
-**Secondary:** The DXpedition can optionally verify a calling station's identity.
-
-The pirate problem is solved by the DXpedition proving *it* is real.
-Station identity codes are a log-integrity bonus, not the core feature.
-
----
-
 ## How It Works
 
 ```
-  DXpedition operator runs operator_OH0X.py on desk laptop
+  DXpedition operator runs the operator tool on a desk laptop
         │
         │  "Our auth code is Three Foxtrot Kilo Alpha"   ← voice
         │  "AUTH 3FKA"                               ← FT8 free text
@@ -39,31 +28,15 @@ Station identity codes are a log-integrity bonus, not the core feature.
 
 A pirate cannot produce a matching code. The code changes every **5 minutes**.
 
-### Cryptographic algorithm
-
-```
-DXped code  =  DLLL( HMAC-SHA256(secret, "DXPED:OH0X:<5min_window>") )
-Station code =  DLLL( HMAC-SHA256(secret, "STATION:OH2LAK:OH0X") )
-```
-
-Codes use the **DLLL format**: one digit from `{2-7}` followed by three letters
-from `{A-Z}`. No ITU callsign starts with a bare digit, so codes are instantly
-distinguishable from callsigns on the air. The alphabet avoids ambiguous
-characters (0/O, 1/I/L) and is safe for voice transmission using the NATO
-phonetic alphabet.
-
-Verification checks the current window ± 1 (15-minute total tolerance) to
-account for clock differences between stations.
-
 ---
 
-## Quick Start
+## Quick Start — Windows (no Python required)
 
-### Requirements
-- **Python 3.7+** — no `pip install` needed, standard library only
-- **Any modern browser** — for the station web tool (offline capable)
+This is the easiest way to run the operator tools during the DXpedition.
 
-### 1 — Generate your tools once before the DXpedition
+### 1 — Generate your tools (one-time setup)
+
+Someone on the team with Python installed runs this **once** before the trip:
 
 ```bash
 python generate_tools.py --callsign OH0X --output ./OH0X_tools/
@@ -76,24 +49,29 @@ python generate_tools.py --callsign OH0X --output ./OH0X_tools/
   ✔  OH0X_tools/station_tool_OH0X.html
   ✔  OH0X_tools/operator_OH0X.py
   ✔  OH0X_tools/ft8_bridge_OH0X.py
-
-  Current DXped code : 3BVR  (Three  Bravo  Victor  Romeo)
-  FT8 free text      : AUTH 3BVR
+  ✔  OH0X_tools/dxpedition_config.json
 ```
 
 > ⚠️ **Back up the key.** To regenerate tools later:
 > `python generate_tools.py --callsign OH0X --key <saved_key>`
 
-### 2 — Distribute the HTML file
+### 2 — Download the Windows executables
 
-Post `station_tool_OH0X.html` on your DXpedition website.
-It works fully **offline** — no internet required during operation.
+Download `operator.exe` and `ft8_bridge.exe` from the latest
+[GitHub Release](../../releases).
 
-### 3 — Run the operator dashboard
+### 3 — Copy three files to the operating laptop
 
-```bash
-python OH0X_tools/operator_OH0X.py
 ```
+OH0X_tools/
+  operator.exe
+  ft8_bridge.exe
+  dxpedition_config.json   ← created by generate_tools.py
+```
+
+No Python needed on this machine.
+
+### 4 — Double-click `operator.exe`
 
 ```
   ──────────────────────────────────────────────────────────────────
@@ -120,6 +98,34 @@ python OH0X_tools/operator_OH0X.py
   Ctrl+C to exit.
 ```
 
+> The `.exe` files read the DXpedition callsign and key from
+> `dxpedition_config.json`, which must be in the same folder.
+
+### 5 — Distribute the HTML file
+
+Post `station_tool_OH0X.html` on your DXpedition website.
+It works fully **offline** — no internet required during operation.
+
+---
+
+## Quick Start — Python
+
+If you prefer running Python scripts directly (or don't need Windows `.exe` files),
+the generated Python tools work identically.
+
+### Requirements
+- **Python 3.7+** — no `pip install` needed, standard library only
+- **Any modern browser** — for the station web tool (offline capable)
+
+### Generate & run
+
+```bash
+python generate_tools.py --callsign OH0X --output ./OH0X_tools/
+python OH0X_tools/operator_OH0X.py
+```
+
+The operator dashboard output is the same as shown above.
+
 ---
 
 ## FT8 / FT4 / FT2 / Digital Mode Integration
@@ -131,6 +137,10 @@ characters, within the 13-character limit). The free text alphabet
 ### Automatic WSJT-X integration
 
 ```bash
+# Windows:
+ft8_bridge.exe
+
+# Python:
 python OH0X_tools/ft8_bridge_OH0X.py
 ```
 
@@ -177,6 +187,32 @@ valid auth code from `OH0X`.
 
 ---
 
+## Design Principle
+
+**Primary:** The DXpedition authenticates itself to calling stations.
+**Secondary:** The DXpedition can optionally verify a calling station's identity.
+
+The pirate problem is solved by the DXpedition proving *it* is real.
+Station identity codes are a log-integrity bonus, not the core feature.
+
+### Cryptographic algorithm
+
+```
+DXped code  =  DLLL( HMAC-SHA256(secret, "DXPED:OH0X:<5min_window>") )
+Station code =  DLLL( HMAC-SHA256(secret, "STATION:OH2LAK:OH0X") )
+```
+
+Codes use the **DLLL format**: one digit from `{2-7}` followed by three letters
+from `{A-Z}`. No ITU callsign starts with a bare digit, so codes are instantly
+distinguishable from callsigns on the air. The alphabet avoids ambiguous
+characters (0/O, 1/I/L) and is safe for voice transmission using the NATO
+phonetic alphabet.
+
+Verification checks the current window ± 1 (15-minute total tolerance) to
+account for clock differences between stations.
+
+---
+
 ## Security Model
 
 | What | Protects against | Limitation |
@@ -190,33 +226,6 @@ A pirate cannot produce valid codes without the tool.
 
 **Key rotation:** If the key is compromised mid-DXpedition, regenerate with a
 new key and redistribute the HTML. Old codes become invalid immediately.
-
----
-
-## Windows Executables (no Python required)
-
-Pre-built `.exe` files are available on the
-[Releases](../../releases) page for operators who don't have Python installed.
-
-### Setup
-
-1. **Generate your tools** (requires Python on *any* machine, once):
-   ```bash
-   python generate_tools.py --callsign OH0X --output ./OH0X_tools/
-   ```
-2. **Download** `operator.exe` and `ft8_bridge.exe` from the latest
-   [GitHub release](../../releases).
-3. **Copy** the three files into one folder on the operating laptop:
-   ```
-   OH0X_tools/
-     operator.exe
-     ft8_bridge.exe
-     dxpedition_config.json   ← created by generate_tools.py
-   ```
-4. **Double-click** `operator.exe` to launch the dashboard — no Python needed.
-
-> The `.exe` files read the DXpedition callsign and key from
-> `dxpedition_config.json`, which must be in the same folder.
 
 ---
 
