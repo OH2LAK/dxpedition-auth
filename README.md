@@ -30,11 +30,11 @@ Station identity codes are a log-integrity bonus, not the core feature.
 ```
   DXpedition operator runs operator_OH0X.py on desk laptop
         │
-        │  "Our auth code is Three Foxtrot Alpha"   ← voice
-        │  "AUTH 3FA"                               ← FT8 free text
+        │  "Our auth code is Three Foxtrot Kilo Alpha"   ← voice
+        │  "AUTH 3FKA"                               ← FT8 free text
         │
         ▼  any listening station
-  Opens station_tool_OH0X.html → Verify tab → enters 3FA → AUTHENTIC ✔
+  Opens station_tool_OH0X.html → Verify tab → enters 3FKA → AUTHENTIC ✔
 ```
 
 A pirate cannot produce a matching code. The code changes every **5 minutes**.
