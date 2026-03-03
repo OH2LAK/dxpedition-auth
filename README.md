@@ -152,7 +152,7 @@ CQ       OH0X JP90
 OH2RAK   OH0X -12
 OH0X     OH2RAK R-08
 OH0X     OH2RAK RR73
-OH0X          AUTH 3BVR    ← authentication free text
+OH0X     AUTH 3BVR    ← authentication free text
 ```
 
 ### Fox & Hound (DXpedition) mode
