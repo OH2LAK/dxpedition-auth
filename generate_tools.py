@@ -50,6 +50,7 @@ import hmac as _hmac
 import hashlib
 import secrets
 import argparse
+import json
 import time
 from datetime import datetime, timezone
 
@@ -1037,6 +1038,13 @@ def main():
         with open(path, "w", encoding="utf-8") as f: f.write(content)
         os.chmod(path, 0o755)
         print(f"  ✔  {path}")
+
+    # Config file for standalone .exe tools (operator.exe / ft8_bridge.exe)
+    cfg_path = os.path.join(out, "dxpedition_config.json")
+    with open(cfg_path, "w", encoding="utf-8") as f:
+        json.dump({"callsign": call.upper(), "key": key,
+                    "window_seconds": WINDOW_SECONDS}, f, indent=2)
+    print(f"  ✔  {cfg_path}  (for Windows .exe tools)")
 
     win  = int(time.time() // WINDOW_SECONDS)
     curr = dxped_time_code(key, call, win)

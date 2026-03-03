@@ -193,6 +193,33 @@ new key and redistribute the HTML. Old codes become invalid immediately.
 
 ---
 
+## Windows Executables (no Python required)
+
+Pre-built `.exe` files are available on the
+[Releases](../../releases) page for operators who don't have Python installed.
+
+### Setup
+
+1. **Generate your tools** (requires Python on *any* machine, once):
+   ```bash
+   python generate_tools.py --callsign OH0X --output ./OH0X_tools/
+   ```
+2. **Download** `operator.exe` and `ft8_bridge.exe` from the latest
+   [GitHub release](../../releases).
+3. **Copy** the three files into one folder on the operating laptop:
+   ```
+   OH0X_tools/
+     operator.exe
+     ft8_bridge.exe
+     dxpedition_config.json   ← created by generate_tools.py
+   ```
+4. **Double-click** `operator.exe` to launch the dashboard — no Python needed.
+
+> The `.exe` files read the DXpedition callsign and key from
+> `dxpedition_config.json`, which must be in the same folder.
+
+---
+
 ## Files
 
 | File | Who uses it | Share? |
@@ -201,9 +228,11 @@ new key and redistribute the HTML. Old codes become invalid immediately.
 | `station_tool_<CALL>.html` | All hams worldwide | **Yes — post publicly** |
 | `operator_<CALL>.py` | DXpedition operator desk | **No — keep private** |
 | `ft8_bridge_<CALL>.py` | DXpedition operator desk | **No — keep private** |
+| `dxpedition_config.json` | Windows .exe tools | **No — contains key** |
+| `operator.exe` / `ft8_bridge.exe` | Windows operators | Yes (from Releases) |
 
 Generated files contain embedded keys and are excluded from this repo by
-`.gitignore`. Only `generate_tools.py` is committed.
+`.gitignore`. Only `generate_tools.py` and the standalone sources are committed.
 
 ---
 

@@ -1,6 +1,7 @@
 # ── Generated tools (contain embedded secret keys — never commit) ─────────────
 station_tool_*.html
 operator_*.py
+dxpedition_config.json
 
 # Any output directories created by generate_tools.py
 *_tools/
