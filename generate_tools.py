@@ -20,21 +20,25 @@ USAGE:
   python generate_tools.py --callsign OH0X --key <existing_64_hex_chars>
 
 CRYPTOGRAPHIC NOTES:
-  All codes: HMAC-SHA256 keyed with the embedded 256-bit secret, output
-  Base32-encoded and truncated to 5 characters.
+  All codes use HMAC-SHA256 keyed with the embedded 256-bit secret.
+  Output format: DLLL  (one digit from {2-7}, three letters from {A-Z}).
 
-  DXpedition time code  = HMAC(secret, "DXPED:<CALL>:<5min_window_number>")[:5]
+  No amateur callsign ever starts with a digit (ITU rule), so DLLL codes
+  are instantly distinguishable from callsigns over the air or in FT8 text.
+
+  DXpedition time code  = auth_code(secret, "DXPED:<CALL>:<5min_window>")
+    • Pattern DLLL, e.g. "3FAT"
     • Changes every 5 minutes.  Verified by ±1 window (15 min tolerance).
     • Station enters the received code into the web tool → AUTHENTIC / NOT AUTHENTIC.
     • This is the PRIMARY authentication — it proves the DXpedition is real.
 
-  Station identity code = HMAC(secret, "STATION:<THEIR_CALL>:<DXPED_CALL>")[:5]
-    • Permanent for the duration of the DXpedition.
+  Station identity code = auth_code(secret, "STATION:<THEIR_CALL>:<DXPED_CALL>")
+    • Same DLLL pattern, permanent for the duration of the DXpedition.
     • Tied to the specific callsign pair — useless with any other DXpedition.
     • This is SECONDARY — useful for log integrity, not mandatory.
 
   FT8 / FT4 / FT2 integration:
-    • Auth code fits in the 13-char free text field as "AUTH BVRTK" (10 chars).
+    • Auth code fits in the 13-char free text field as "AUTH 3FAT" (9 chars).
     • ft8_bridge_*.py pushes the code to WSJT-X automatically via UDP (port 2237).
     • Station-side: ft8_monitor_*.py (optional, see docs) listens for the code
       in WSJT-X decode stream and auto-verifies it.
@@ -52,7 +56,11 @@ from datetime import datetime, timezone
 # ─── Cryptographic core ───────────────────────────────────────────────────────
 
 WINDOW_SECONDS = 300   # 5-minute windows
-BASE32_ALPHA   = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+
+# Code alphabet: DLLL format (one digit + three letters).
+# No ITU callsign starts with a digit — codes are instantly distinguishable.
+DIGIT_ALPHA  = "234567"                      # 6 options  → position 0
+LETTER_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"  # 26 options → positions 1-3
 
 PHONETIC = {
     "A": "Alpha",   "B": "Bravo",   "C": "Charlie", "D": "Delta",
@@ -67,34 +75,33 @@ PHONETIC = {
 }
 
 
-def b32_encode(data: bytes) -> str:
-    """RFC 4648 Base32 without padding. Identical algorithm used in the JS tool."""
-    result, buf, bits = [], 0, 0
-    for byte in data:
-        buf = (buf << 8) | byte
-        bits += 8
-        while bits >= 5:
-            bits -= 5
-            result.append(BASE32_ALPHA[(buf >> bits) & 31])
-    if bits > 0:
-        result.append(BASE32_ALPHA[(buf << (5 - bits)) & 31])
-    return "".join(result)
+def auth_code(key_hex: str, message: str) -> str:
+    """Compute a 4-character authentication code in DLLL format.
 
+    Format: one digit from {2-7} followed by three letters from {A-Z}.
+    No ITU amateur callsign starts with a digit, so this pattern is
+    immediately distinguishable from a callsign over voice or FT8.
 
-def hmac5(key_hex: str, message: str) -> str:
+    Identical algorithm is implemented in the JavaScript station tool.
+    """
     key    = bytes.fromhex(key_hex)
     digest = _hmac.new(key, message.encode("utf-8"), hashlib.sha256).digest()
-    return b32_encode(digest)[:5]
+    return (
+        DIGIT_ALPHA [digest[0] % 6 ] +
+        LETTER_ALPHA[digest[1] % 26] +
+        LETTER_ALPHA[digest[2] % 26] +
+        LETTER_ALPHA[digest[3] % 26]
+    )
 
 
 def dxped_time_code(key_hex: str, dxped: str, window: int = None) -> str:
     if window is None:
         window = int(time.time() // WINDOW_SECONDS)
-    return hmac5(key_hex, f"DXPED:{dxped.upper().strip()}:{window}")
+    return auth_code(key_hex, f"DXPED:{dxped.upper().strip()}:{window}")
 
 
 def station_code(key_hex: str, station: str, dxped: str) -> str:
-    return hmac5(key_hex, f"STATION:{station.upper().strip()}:{dxped.upper().strip()}")
+    return auth_code(key_hex, f"STATION:{station.upper().strip()}:{dxped.upper().strip()}")
 
 
 def phonetic(code: str) -> str:
@@ -315,7 +322,7 @@ HTML_TEMPLATE = """\
 
     <!-- Verification input -->
     <label>CODE YOU RECEIVED FROM __DXPED__ OVER THE AIR</label>
-    <input type="text" id="inp-rxcode" maxlength="5" placeholder="5 CHARS"
+    <input type="text" id="inp-rxcode" maxlength="4" placeholder="4 CHARS"
            oninput="onRxInput()" onkeydown="if(event.key==='Enter')verifyCode()">
     <button class="btn" onclick="verifyCode()">&#10003; VERIFY</button>
 
@@ -326,7 +333,7 @@ HTML_TEMPLATE = """\
 
     <div class="info-box">
       <strong>How to use:</strong> Listen for __DXPED__ to announce their
-      authentication code over the air (phonetically). Enter the 5 characters
+      authentication code over the air (phonetically). Enter the 4 characters
       above and click Verify. A pirate station cannot produce a matching code.
       The code changes every 5 minutes &mdash; the tool accepts one window either
       side for clock tolerance.
@@ -434,7 +441,7 @@ HTML_TEMPLATE = """\
       <ol style="padding-left:20px; line-height:2;">
         <li>Listen for __DXPED__ to announce their authentication code phonetically,
             or watch for it in their FT8 free-text transmission.</li>
-        <li>Go to the <em>Verify __DXPED__</em> tab and enter the 5-character code.</li>
+        <li>Go to the <em>Verify __DXPED__</em> tab and enter the 4-character code.</li>
         <li>&#10003;&nbsp;<strong>AUTHENTIC</strong> &rarr; you are in contact with the
             real station. Log with confidence.</li>
         <li>&#10007;&nbsp;<strong>NOT AUTHENTIC</strong> &rarr; possible pirate. Do not
@@ -445,7 +452,7 @@ HTML_TEMPLATE = """\
       <p><strong style="color:var(--green);">FOR DXPEDITION OPERATORS</strong></p>
       <ol style="padding-left:20px; line-height:2;">
         <li>Run <code>operator___DXPED__.py</code> on the operating desk laptop.</li>
-        <li>Announce the displayed 5-character code over the air every few QSOs,
+        <li>Announce the displayed 4-character code over the air every few QSOs,
             or whenever a station asks for it.</li>
         <li>For FT8/FT4: run <code>ft8_bridge___DXPED__.py</code> alongside WSJT-X &mdash;
             it auto-inserts the code as free text and updates it every 5 minutes.</li>
@@ -480,17 +487,10 @@ const KEY_HEX  = "__KEY__";
 const DXPED    = "__DXPED__";
 const WIN_SECS = __WIN_SECS__;
 
-// ─── Base32 (RFC 4648, no padding — identical to Python implementation) ───────
-const B32 = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567";
-function base32(bytes) {
-  let r = "", buf = 0, bits = 0;
-  for (const b of bytes) {
-    buf = (buf << 8) | b; bits += 8;
-    while (bits >= 5) { bits -= 5; r += B32[(buf >>> bits) & 31]; }
-  }
-  if (bits > 0) r += B32[(buf << (5 - bits)) & 31];
-  return r;
-}
+// ─── Code alphabet: DLLL (digit + 3 letters) ─────────────────────────────────
+// No ITU callsign starts with a digit — codes are instantly distinguishable.
+const DIGITS  = "234567";
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
 
 // ─── HMAC-SHA256 via Web Crypto API ──────────────────────────────────────────
 function hex2bytes(hex) {
@@ -498,18 +498,23 @@ function hex2bytes(hex) {
   for (let i = 0; i < hex.length; i += 2) b[i >> 1] = parseInt(hex.substr(i, 2), 16);
   return b;
 }
-async function hmac5(keyHex, msg) {
+async function authCode(keyHex, msg) {
   const k = await crypto.subtle.importKey(
     "raw", hex2bytes(keyHex), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]
   );
-  const sig = await crypto.subtle.sign("HMAC", k, new TextEncoder().encode(msg));
-  return base32(new Uint8Array(sig)).slice(0, 5);
+  const d = new Uint8Array(await crypto.subtle.sign(
+    "HMAC", k, new TextEncoder().encode(msg)
+  ));
+  // DLLL: one digit from {2-7}, three letters from {A-Z}
+  // Identical to Python: DIGIT_ALPHA[d[0]%6] + LETTER_ALPHA[d[1]%26] + ...
+  return DIGITS[d[0] % 6] + LETTERS[d[1] % 26] + LETTERS[d[2] % 26] +
+         LETTERS[d[3] % 26];
 }
 async function dxpedCode(win) {
-  return hmac5(KEY_HEX, "DXPED:" + DXPED + ":" + win);
+  return authCode(KEY_HEX, "DXPED:" + DXPED + ":" + win);
 }
 async function stationCode(call) {
-  return hmac5(KEY_HEX, "STATION:" + call.toUpperCase().trim() + ":" + DXPED);
+  return authCode(KEY_HEX, "STATION:" + call.toUpperCase().trim() + ":" + DXPED);
 }
 
 // ─── Phonetic ─────────────────────────────────────────────────────────────────
@@ -558,13 +563,13 @@ updateLive();
 // ─── Verify DXpedition code ───────────────────────────────────────────────────
 async function onRxInput() {
   const v = document.getElementById("inp-rxcode").value.trim().toUpperCase();
-  if (v.length === 5) await verifyCode();
+  if (v.length === 4) await verifyCode();
   else clearResult("ver-result");
 }
 
 async function verifyCode() {
   const received = document.getElementById("inp-rxcode").value.trim().toUpperCase();
-  if (received.length !== 5) {
+  if (received.length !== 4) {
     const el = document.getElementById("inp-rxcode");
     el.style.borderColor = "var(--red)";
     setTimeout(() => el.style.borderColor = "", 700);
@@ -587,7 +592,7 @@ async function verifyCode() {
   document.getElementById("ver-verdict").innerHTML = '<div class="verdict-bad">&#10007; NOT AUTHENTIC</div>';
   document.getElementById("ver-detail").textContent =
     "Code does not match any valid 5-minute window. " +
-    "This may be a pirate station. Check you copied all 5 characters correctly, " +
+    "This may be a pirate station. Check you copied all 4 characters correctly, " +
     "then ask " + DXPED + " to announce their current code again.";
   box.className = "result-box visible bad";
 }
@@ -634,7 +639,7 @@ OPERATOR_TEMPLATE = """\
 DXpedition Operator Authentication Tool  —  __DXPED__
 ======================================================
 
-PRIMARY  : Shows the current 5-char time code to broadcast to callers.
+PRIMARY  : Shows the current 4-char time code to broadcast to callers.
 SECONDARY: Look up the expected code for any calling station's callsign.
 
 USAGE:
@@ -649,7 +654,8 @@ DXPED          = "__DXPED__"
 SECRET_KEY_HEX = "__KEY__"
 WINDOW_SECS    = __WIN_SECS__
 
-BASE32_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
+DIGIT_ALPHA  = "234567"
+LETTER_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
 PHONETIC = {
     "A":"Alpha","B":"Bravo","C":"Charlie","D":"Delta","E":"Echo","F":"Foxtrot",
     "G":"Golf","H":"Hotel","I":"India","J":"Juliet","K":"Kilo","L":"Lima",
@@ -659,25 +665,19 @@ PHONETIC = {
     "2":"Two","3":"Three","4":"Four","5":"Five","6":"Six","7":"Seven",
 }
 
-def _b32(data):
-    result, buf, bits = [], 0, 0
-    for byte in data:
-        buf = (buf << 8) | byte; bits += 8
-        while bits >= 5:
-            bits -= 5; result.append(BASE32_ALPHA[(buf >> bits) & 31])
-    if bits > 0: result.append(BASE32_ALPHA[(buf << (5 - bits)) & 31])
-    return "".join(result)
-
-def _hmac5(message):
+def _auth_code(message):
+    \"\"\"DLLL format: digit {2-7} + 3 letters {A-Z}. Never looks like a callsign.\"\"\"
     key = bytes.fromhex(SECRET_KEY_HEX)
-    return _b32(_hmac.new(key, message.encode(), hashlib.sha256).digest())[:5]
+    d = _hmac.new(key, message.encode(), hashlib.sha256).digest()
+    return (DIGIT_ALPHA[d[0]%6] + LETTER_ALPHA[d[1]%26] +
+            LETTER_ALPHA[d[2]%26] + LETTER_ALPHA[d[3]%26])
 
 def get_dxped_code(window=None):
     if window is None: window = int(time.time() // WINDOW_SECS)
-    return _hmac5(f"DXPED:{DXPED}:{window}")
+    return _auth_code(f"DXPED:{DXPED}:{window}")
 
 def get_station_code(call):
-    return _hmac5(f"STATION:{call.upper().strip()}:{DXPED}")
+    return _auth_code(f"STATION:{call.upper().strip()}:{DXPED}")
 
 def ph(code): return "  ".join(PHONETIC.get(c, c) for c in code.upper())
 
@@ -835,26 +835,22 @@ MSG_FREE_TEXT = 9   # FreeText   (external → WSJT-X): set TX free text
 MSG_DECODE    = 2   # Decode     (WSJT-X → external): decoded message
 MSG_STATUS    = 1   # Status     (WSJT-X → external): operational status
 
-# ─── Crypto ──────────────────────────────────────────────────────────────────
-BASE32_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ234567"
-def _b32(data):
-    r, buf, bits = [], 0, 0
-    for b in data:
-        buf=(buf<<8)|b; bits+=8
-        while bits>=5: bits-=5; r.append(BASE32_ALPHA[(buf>>bits)&31])
-    if bits>0: r.append(BASE32_ALPHA[(buf<<(5-bits))&31])
-    return "".join(r)
+# ─── Crypto: DLLL format (digit + 3 letters, never looks like a callsign) ────
+DIGIT_ALPHA  = "234567"
+LETTER_ALPHA = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+
+def _auth_code(message):
+    key = bytes.fromhex(SECRET_KEY_HEX)
+    d = _hmac.new(key, message.encode(), hashlib.sha256).digest()
+    return (DIGIT_ALPHA[d[0]%6] + LETTER_ALPHA[d[1]%26] +
+            LETTER_ALPHA[d[2]%26] + LETTER_ALPHA[d[3]%26])
 
 def current_code(window=None):
     if window is None: window = int(time.time() // WINDOW_SECS)
-    key = bytes.fromhex(SECRET_KEY_HEX)
-    d = _hmac.new(key, f"DXPED:{DXPED}:{window}".encode(), hashlib.sha256).digest()
-    return _b32(d)[:5]
+    return _auth_code(f"DXPED:{DXPED}:{window}")
 
 def expected_station_code(call):
-    key = bytes.fromhex(SECRET_KEY_HEX)
-    d = _hmac.new(key, f"STATION:{call.upper().strip()}:{DXPED}".encode(), hashlib.sha256).digest()
-    return _b32(d)[:5]
+    return _auth_code(f"STATION:{call.upper().strip()}:{DXPED}")
 
 # ─── Qt QDataStream packing ───────────────────────────────────────────────────
 def _qstring(s):
@@ -956,10 +952,10 @@ def run(host, port):
                     if f"AUTH {code}" in msg:
                         print(f"  {ts()}  {C}✓ Received own auth code in decode: {dec['message']}{RST}")
                     # Detect a station code from a calling station
-                    # Format: callsign sends free text containing their 5-char code
+                    # Format: callsign sends free text containing their 4-char code
                     # This is informational only — not automated verification
                     words = msg.split()
-                    if len(words) >= 2 and len(words[-1]) == 5:
+                    if len(words) >= 2 and len(words[-1]) == 4:
                         call = words[0]
                         rcvd = words[-1]
                         exp  = expected_station_code(call)

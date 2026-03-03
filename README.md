@@ -30,11 +30,11 @@ Station identity codes are a log-integrity bonus, not the core feature.
 ```
   DXpedition operator runs operator_OH0X.py on desk laptop
         │
-        │  "Our auth code is Foxtrot Alpha Three"   ← voice
-        │  "AUTH FA3TK"                             ← FT8 free text
+        │  "Our auth code is Three Foxtrot Alpha"   ← voice
+        │  "AUTH 3FA"                               ← FT8 free text
         │
         ▼  any listening station
-  Opens station_tool_OH0X.html → Verify tab → enters FA3TK → AUTHENTIC ✔
+  Opens station_tool_OH0X.html → Verify tab → enters 3FA → AUTHENTIC ✔
 ```
 
 A pirate cannot produce a matching code. The code changes every **5 minutes**.
@@ -42,12 +42,15 @@ A pirate cannot produce a matching code. The code changes every **5 minutes**.
 ### Cryptographic algorithm
 
 ```
-DXped code  =  Base32( HMAC-SHA256(secret, "DXPED:OH0X:<5min_window>") )[:5]
-Station code =  Base32( HMAC-SHA256(secret, "STATION:OH2RAK:OH0X") )[:5]
+DXped code  =  DLLL( HMAC-SHA256(secret, "DXPED:OH0X:<5min_window>") )
+Station code =  DLLL( HMAC-SHA256(secret, "STATION:OH2RAK:OH0X") )
 ```
 
-The **Base32 alphabet** (`A–Z`, `2–7`) avoids ambiguous characters (0/O, 1/I/L)
-and is safe for voice transmission using the NATO phonetic alphabet.
+Codes use the **DLLL format**: one digit from `{2-7}` followed by three letters
+from `{A-Z}`. No ITU callsign starts with a bare digit, so codes are instantly
+distinguishable from callsigns on the air. The alphabet avoids ambiguous
+characters (0/O, 1/I/L) and is safe for voice transmission using the NATO
+phonetic alphabet.
 
 Verification checks the current window ± 1 (15-minute total tolerance) to
 account for clock differences between stations.
@@ -74,8 +77,8 @@ python generate_tools.py --callsign OH0X --output ./OH0X_tools/
   ✔  OH0X_tools/operator_OH0X.py
   ✔  OH0X_tools/ft8_bridge_OH0X.py
 
-  Current DXped code : BVRTK  (Bravo  Victor  Romeo  Tango  Kilo)
-  FT8 free text      : AUTH BVRTK
+  Current DXped code : 3BVR  (Three  Bravo  Victor  Romeo)
+  FT8 free text      : AUTH 3BVR
 ```
 
 > ⚠️ **Back up the key.** To regenerate tools later:
@@ -100,17 +103,17 @@ python OH0X_tools/operator_OH0X.py
 
   BROADCAST THIS CODE TO ALL CALLERS:
 
-     B  V  R  T  K     ← CURRENT CODE
+     3  B  V  R     ← CURRENT CODE
 
-  Phonetic:  Bravo  Victor  Romeo  Tango  Kilo
+  Phonetic:  Three  Bravo  Victor  Romeo
 
   ████████████████████████████████░░░░░░░░  02:47
   Remaining in this 5-minute window
 
-  FT8/FT4 free text  →  AUTH BVRTK  (paste into WSJT-X or run ft8_bridge)
+  FT8/FT4 free text  →  AUTH 3BVR  (paste into WSJT-X or run ft8_bridge)
 
   ──────────────────────────────────────
-  Adjacent windows:   PREV MJXQZ   NEXT LKPWA
+  Adjacent windows:   PREV 5MJX   NEXT 4LKP
   ──────────────────────────────────────
 
   Type a callsign + ENTER to look up their expected code.
@@ -121,9 +124,9 @@ python OH0X_tools/operator_OH0X.py
 
 ## FT8 / FT4 / FT2 / Digital Mode Integration
 
-The 5-character auth code fits in the **FT8 free text field** (`AUTH BVRTK` = 10
+The 4-character auth code fits in the **FT8 free text field** (`AUTH 3BVR` = 9
 characters, within the 13-character limit). The free text alphabet
-(`A–Z 0–9 + - . / ?`) includes all Base32 characters.
+(`A–Z 0–9 + - . / ?`) includes all DLLL characters.
 
 ### Automatic WSJT-X integration
 
@@ -149,7 +152,7 @@ CQ       OH0X JP90
 OH2RAK   OH0X -12
 OH0X     OH2RAK R-08
 OH0X     OH2RAK RR73
-OH0X          AUTH BVRTK   ← authentication free text
+OH0X          AUTH 3BVR    ← authentication free text
 ```
 
 ### Fox & Hound (DXpedition) mode
@@ -178,7 +181,7 @@ valid auth code from `OH0X`.
 
 | What | Protects against | Limitation |
 |------|-----------------|------------|
-| 5-min DXped time code | Pirate stations, replay attacks | Secret embedded in HTML — extractable by sophisticated adversary |
+| 5-min DXped time code (DLLL) | Pirate stations, replay attacks | Secret embedded in HTML — extractable by sophisticated adversary |
 | Per-callsign station code | Log falsification, callsign spoofing | Same limitation |
 
 **Trust model:** Stations who download `station_tool_OH0X.html` from the
