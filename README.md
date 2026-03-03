@@ -43,7 +43,7 @@ A pirate cannot produce a matching code. The code changes every **5 minutes**.
 
 ```
 DXped code  =  DLLL( HMAC-SHA256(secret, "DXPED:OH0X:<5min_window>") )
-Station code =  DLLL( HMAC-SHA256(secret, "STATION:OH2RAK:OH0X") )
+Station code =  DLLL( HMAC-SHA256(secret, "STATION:OH2LAK:OH0X") )
 ```
 
 Codes use the **DLLL format**: one digit from `{2-7}` followed by three letters
@@ -149,9 +149,9 @@ Send it as a standalone free text transmission — for example after `RR73`:
 
 ```
 CQ       OH0X JP90
-OH2RAK   OH0X -12
-OH0X     OH2RAK R-08
-OH0X     OH2RAK RR73
+OH2LAK   OH0X -12
+OH0X     OH2LAK R-08
+OH0X     OH2LAK RR73
 OH0X     AUTH 3BVR    ← authentication free text
 ```
 

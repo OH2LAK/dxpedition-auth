@@ -348,7 +348,7 @@ HTML_TEMPLATE = """\
     <div class="secondary-badge">OPTIONAL &bull; FOR LOG INTEGRITY</div>
 
     <label>YOUR CALLSIGN</label>
-    <input type="text" id="inp-station" maxlength="12" placeholder="e.g. OH2RAK"
+    <input type="text" id="inp-station" maxlength="12" placeholder="e.g. OH2LAK"
            oninput="clearResult('gen-result')" onkeydown="if(event.key==='Enter')genCode()">
 
     <label style="margin-top:16px">DXPEDITION (fixed)</label>
@@ -403,9 +403,9 @@ HTML_TEMPLATE = """\
       <strong>Example sequence:</strong><br>
       <code style="color:var(--text)">
         CQ&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;OH0X JP90<br>
-        OH2RAK OH0X -12<br>
-        OH0X OH2RAK R-08<br>
-        OH0X OH2RAK RR73<br>
+        OH2LAK OH0X -12<br>
+        OH0X OH2LAK R-08<br>
+        OH0X OH2LAK RR73<br>
         OH0X&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;AUTH BVRTK&nbsp;&nbsp;&nbsp;&larr; auth code in free text
       </code>
     </div>
@@ -1049,11 +1049,11 @@ def main():
     win  = int(time.time() // WINDOW_SECONDS)
     curr = dxped_time_code(key, call, win)
     nxt  = dxped_time_code(key, call, win + 1)
-    stn  = station_code(key, "OH2RAK", call)
+    stn  = station_code(key, "OH2LAK", call)
     print(f"\n  Current DXped code : {curr}  ({phonetic(curr)})")
     print(f"  Next DXped code    : {nxt}  ({phonetic(nxt)})")
     print(f"  FT8 free text      : AUTH {curr}")
-    print(f"  Example OH2RAK     : {stn}  ({phonetic(stn)})")
+    print(f"  Example OH2LAK     : {stn}  ({phonetic(stn)})")
     print()
     print("  → Distribute station_tool_*.html to the ham community.")
     print("  → Keep operator_*.py and ft8_bridge_*.py on the DXped laptop only.")
